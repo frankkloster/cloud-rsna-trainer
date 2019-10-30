@@ -31,30 +31,78 @@ from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.saved_model import tag_constants
 from tensorflow.python.saved_model.signature_def_utils_impl import predict_signature_def
 
+from trainer.data import DataGenerator
+from trainer.checkpoints import PredictionCheckpoint
+
+import os
+
+TEST_IMAGES_DIR = os.environ.get('test_images_dir')
+TRAIN_IMAGES_DIR = os.environ.get('train_images_dir')
+
 # CSV columns in the input file.
-CSV_COLUMNS = ('age', 'workclass', 'fnlwgt', 'education', 'education_num',
-               'marital_status', 'occupation', 'relationship', 'race', 'gender',
-               'capital_gain', 'capital_loss', 'hours_per_week',
-               'native_country', 'income_bracket')
+CSV_COLUMNS = ('Image')
 
-CSV_COLUMN_DEFAULTS = [[0], [''], [0], [''], [0], [''], [''], [''], [''], [''],
-                       [0], [0], [0], [''], ['']]
+CSV_COLUMN_DEFAULTS = ['']
 
-# Categorical columns with vocab size
-# native_country and fnlwgt are ignored
-CATEGORICAL_COLS = (('education', 16), ('marital_status', 7),
-                    ('relationship', 6), ('workclass', 9), ('occupation', 15),
-                    ('gender', [' Male', ' Female']), ('race', 5))
+LABELS = [0, 1]
+LABEL_COLUMNS = ['any', 'epidural', 'intraparenchymal', 'intraventricular', 'subarachnoid', 'subdural']
 
-CONTINUOUS_COLS = ('age', 'education_num', 'capital_gain', 'capital_loss',
-                   'hours_per_week')
 
-LABELS = [' <=50K', ' >50K']
-LABEL_COLUMN = 'income_bracket'
+class MyDeepModel:
+    def __init__(self, engine, input_dims, batch_size=5, num_epochs=4, learning_rate=1e-3,
+                 decay_rate=1.0, decay_steps=1, weights="imagenet", verbose=1):
+        self.engine = engine
+        self.input_dims = input_dims
+        self.batch_size = batch_size
+        self.num_epochs = num_epochs
+        self.learning_rate = learning_rate
+        self.decay_rate = decay_rate
+        self.decay_steps = decay_steps
+        self.weights = weights
+        self.verbose = verbose
+        self._build()
 
-UNUSED_COLUMNS = set(CSV_COLUMNS) - set(
-    list(zip(*CATEGORICAL_COLS))[0] + CONTINUOUS_COLS + (LABEL_COLUMN,))
+    def _build(self):
+        engine = self.engine(include_top=False, weights=self.weights, input_shape=self.input_dims,
+                             backend=keras.backend, layers=keras.layers,
+                             models=keras.models, utils=keras.utils)
 
+        x = keras.layers.GlobalAveragePooling2D(name='avg_pool')(engine.output)
+        out = keras.layers.Dense(6, activation="sigmoid", name='dense_output')(x)
+
+        self.model = keras.models.Model(inputs=engine.input, outputs=out)
+
+        self.model.compile(loss="binary_crossentropy", optimizer=keras.optimizers.Adam(), metrics=[weighted_loss])
+
+    def fit_and_predict(self, train_df, valid_df, test_df):
+        # callbacks
+        pred_history = PredictionCheckpoint(test_df, valid_df, input_size=self.input_dims)
+        scheduler = keras.callbacks.LearningRateScheduler(
+            lambda epoch: self.learning_rate * pow(self.decay_rate, floor(epoch / self.decay_steps))
+        )
+
+        self.model.fit_generator(
+            DataGenerator(
+                train_df.index,
+                train_df,
+                self.batch_size,
+                self.input_dims,
+                TRAIN_IMAGES_DIR
+            ),
+            epochs=self.num_epochs,
+            verbose=self.verbose,
+            use_multiprocessing=True,
+            workers=4,
+            callbacks=[pred_history, scheduler]
+        )
+
+        return pred_history
+
+    def save(self, path):
+        self.model.save_weights(path)
+
+    def load(self, path):
+        self.model.load_weights(path)
 
 def model_fn(input_dim,
              labels_dim,
@@ -109,36 +157,6 @@ def to_savedmodel(model, export_path):
             signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY: signature
         })
     builder.save()
-
-
-def to_numeric_features(features, feature_cols=None):
-  """Converts the pandas input features to numeric values.
-  Args:
-    features: Input features in the data age (continuous) workclass
-      (categorical) fnlwgt (continuous) education (categorical) education_num
-      (continuous) marital_status (categorical) occupation (categorical)
-      relationship (categorical) race (categorical) gender (categorical)
-      capital_gain (continuous) capital_loss (continuous) hours_per_week
-      (continuous) native_country (categorical)
-    feature_cols: Column list of converted features to be returned. Optional,
-      may be used to ensure schema consistency over multiple executions.
-  Returns:
-    A pandas dataframe.
-  """
-
-  for col in CATEGORICAL_COLS:
-    features = pd.concat(
-        [features, pd.get_dummies(features[col[0]], drop_first=True)], axis=1)
-    features.drop(col[0], axis=1, inplace=True)
-
-  # Remove the unused columns from the dataframe.
-  for col in UNUSED_COLUMNS:
-    features.pop(col)
-
-  # Re-index dataframe (if categories list changed from the previous dataset)
-  if feature_cols is not None:
-    features = features.T.reindex(feature_cols).T.fillna(0)
-  return features
 
 
 def generator_input(filenames, chunk_size, batch_size=64):
