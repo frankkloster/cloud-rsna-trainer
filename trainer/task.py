@@ -15,71 +15,31 @@
 """This code implements a Feed forward neural network using Keras API."""
 
 import argparse
-import glob
 import os
 
-from keras.callbacks import Callback
 from keras.callbacks import ModelCheckpoint
 from keras.callbacks import TensorBoard
-from keras.models import load_model
+from keras_applications.resnet import ResNet50
 
 from tensorflow.python.lib.io import file_io
 
 import trainer.model as model
+from trainer.callbacks import ContinuousEval
+from trainer.data import read_trainset
 
-INPUT_SIZE = 55
-CLASS_SIZE = 2
 
 # CHUNK_SIZE specifies the number of lines
 # to read in case the file is very large
 CHUNK_SIZE = 5000
 CHECKPOINT_FILE_PATH = 'checkpoint.{epoch:02d}.hdf5'
-CENSUS_MODEL = 'census.hdf5'
+CENSUS_MODEL = 'rsna.hdf5'
 
-
-class ContinuousEval(Callback):
-    """Continuous eval callback to evaluate the checkpoint once
-     every so many epochs.
-  """
-
-    def __init__(self,
-                 eval_frequency,
-                 eval_files,
-                 learning_rate,
-                 job_dir,
-                 steps=1000):
-        self.eval_files = eval_files
-        self.eval_frequency = eval_frequency
-        self.learning_rate = learning_rate
-        self.job_dir = job_dir
-        self.steps = steps
-
-    def on_epoch_begin(self, epoch, logs={}):
-        """Compile and save model."""
-        if epoch > 0 and epoch % self.eval_frequency == 0:
-            # Unhappy hack to work around h5py not being able to write to GCS.
-            # Force snapshots and saves to local filesystem, then copy them over to GCS.
-            model_path_glob = 'checkpoint.*'
-            if not self.job_dir.startswith('gs://'):
-                model_path_glob = os.path.join(self.job_dir, model_path_glob)
-            checkpoints = glob.glob(model_path_glob)
-            if len(checkpoints) > 0:
-                checkpoints.sort()
-                census_model = load_model(checkpoints[-1])
-                census_model = model.compile_model(census_model, self.learning_rate)
-                loss, acc = census_model.evaluate_generator(
-                    model.generator_input(self.eval_files, chunk_size=CHUNK_SIZE),
-                    steps=self.steps)
-                print('\nEvaluation epoch[{}] metrics[{:.2f}, {:.2f}] {}'.format(
-                    epoch, loss, acc, census_model.metrics_names))
-                if self.job_dir.startswith('gs://'):
-                    copy_file_to_gcs(self.job_dir, checkpoints[-1])
-            else:
-                print('\nEvaluation epoch[{}] (no checkpoints found)'.format(epoch))
+ENGINE = ResNet50
+INPUT_DIMS = (256, 256, 3)
 
 
 def train_and_evaluate(args):
-    census_model = model.model_fn(INPUT_SIZE, CLASS_SIZE)
+    cnn_model = model.MyDeepModel(engine=ENGINE, input_dims=INPUT_DIMS)
     try:
         os.makedirs(args.job_dir)
     except:
@@ -112,22 +72,21 @@ def train_and_evaluate(args):
 
     callbacks = [checkpoint, evaluation, tb_log]
 
-    census_model.fit_generator(
-        model.generator_input(args.train_files, chunk_size=CHUNK_SIZE),
-        steps_per_epoch=args.train_steps,
-        epochs=args.num_epochs,
-        callbacks=callbacks)
+    # Get the data
+    train_df = read_trainset()
+
+    cnn_model.fit_and_predict(train_df.iloc[train_idx], train_df.iloc[valid_idx], test_df, callbacks)
 
     # Unhappy hack to workaround h5py not being able to write to GCS.
     # Force snapshots and saves to local filesystem, then copy them over to GCS.
     if args.job_dir.startswith('gs://'):
-        census_model.save(CENSUS_MODEL)
+        cnn_model.save(CENSUS_MODEL)
         copy_file_to_gcs(args.job_dir, CENSUS_MODEL)
     else:
-        census_model.save(os.path.join(args.job_dir, CENSUS_MODEL))
+        cnn_model.save(os.path.join(args.job_dir, CENSUS_MODEL))
 
     # Convert the Keras model to TensorFlow SavedModel.
-    model.to_savedmodel(census_model, os.path.join(args.job_dir, 'export'))
+    model.to_savedmodel(cnn_model, os.path.join(args.job_dir, 'export'))
 
 
 # h5py workaround: copy local models over to GCS if the job_dir is GCS.

@@ -1,58 +1,76 @@
-import keras
-from trainer.data import DataGenerator
+import numpy as np
+from keras import backend as K
 
-class MyDeepModel:
-    def __init__(self, engine, input_dims, batch_size=5, num_epochs=4, learning_rate=1e-3,
-                 decay_rate=1.0, decay_steps=1, weights="imagenet", verbose=1):
-        self.engine = engine
-        self.input_dims = input_dims
-        self.batch_size = batch_size
-        self.num_epochs = num_epochs
-        self.learning_rate = learning_rate
-        self.decay_rate = decay_rate
-        self.decay_steps = decay_steps
-        self.weights = weights
-        self.verbose = verbose
-        self._build()
+def weighted_log_loss(y_true, y_pred):
+    """
+    Can be used as the loss function in model.compile()
+    ---------------------------------------------------
+    """
 
-    def _build(self):
-        engine = self.engine(include_top=False, weights=self.weights, input_shape=self.input_dims,
-                             backend=keras.backend, layers=keras.layers,
-                             models=keras.models, utils=keras.utils)
+    class_weights = np.array([2., 1., 1., 1., 1., 1.])
 
-        x = keras.layers.GlobalAveragePooling2D(name='avg_pool')(engine.output)
-        out = keras.layers.Dense(6, activation="sigmoid", name='dense_output')(x)
+    eps = K.epsilon()
 
-        self.model = keras.models.Model(inputs=engine.input, outputs=out)
+    y_pred = K.clip(y_pred, eps, 1.0 - eps)
 
-        self.model.compile(loss="binary_crossentropy", optimizer=keras.optimizers.Adam(), metrics=[weighted_loss])
+    out = -(y_true * K.log(y_pred) * class_weights
+            + (1.0 - y_true) * K.log(1.0 - y_pred) * class_weights)
 
-    def fit_and_predict(self, train_df, valid_df, test_df):
-        # callbacks
-        pred_history = PredictionCheckpoint(test_df, valid_df, input_size=self.input_dims)
-        scheduler = keras.callbacks.LearningRateScheduler(
-            lambda epoch: self.learning_rate * pow(self.decay_rate, floor(epoch / self.decay_steps))
-        )
+    return K.mean(out, axis=-1)
 
-        self.model.fit_generator(
-            DataGenerator(
-                train_df.index,
-                train_df,
-                self.batch_size,
-                self.input_dims,
-                train_images_dir
-            ),
-            epochs=self.num_epochs,
-            verbose=self.verbose,
-            use_multiprocessing=True,
-            workers=4,
-            callbacks=[pred_history, scheduler]
-        )
 
-        return pred_history
+def _normalized_weighted_average(arr, weights=None):
+    """
+    A simple Keras implementation that mimics that of
+    numpy.average(), specifically for this competition
+    """
 
-    def save(self, path):
-        self.model.save_weights(path)
+    if weights is not None:
+        scl = K.sum(weights)
+        weights = K.expand_dims(weights, axis=1)
+        return K.sum(K.dot(arr, weights), axis=1) / scl
+    return K.mean(arr, axis=1)
 
-    def load(self, path):
-        self.model.load_weights(path)
+
+def weighted_loss(y_true, y_pred):
+    """
+    Will be used as the metric in model.compile()
+    ---------------------------------------------
+
+    Similar to the custom loss function 'weighted_log_loss()' above
+    but with normalized weights, which should be very similar
+    to the official competition metric:
+        https://www.kaggle.com/kambarakun/lb-probe-weights-n-of-positives-scoring
+    and hence:
+        sklearn.metrics.log_loss with sample weights
+    """
+
+    class_weights = K.variable([2., 1., 1., 1., 1., 1.])
+
+    eps = K.epsilon()
+
+    y_pred = K.clip(y_pred, eps, 1.0 - eps)
+
+    loss = -(y_true * K.log(y_pred)
+             + (1.0 - y_true) * K.log(1.0 - y_pred))
+
+    loss_samples = _normalized_weighted_average(loss, class_weights)
+
+    return K.mean(loss_samples)
+
+
+def weighted_log_loss_metric(trues, preds):
+    """
+    Will be used to calculate the log loss
+    of the validation set in PredictionCheckpoint()
+    ------------------------------------------
+    """
+    class_weights = [2., 1., 1., 1., 1., 1.]
+
+    epsilon = 1e-7
+
+    preds = np.clip(preds, epsilon, 1 - epsilon)
+    loss = trues * np.log(preds) + (1 - trues) * np.log(1 - preds)
+    loss_samples = np.average(loss, axis=1, weights=class_weights)
+
+    return - loss_samples.mean()

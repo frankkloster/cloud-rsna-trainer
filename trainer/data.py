@@ -1,7 +1,11 @@
 import keras
+
 import numpy as np
+import pandas as pd
+
 import pydicom
 import cv2
+
 from math import ceil, floor, log
 import os
 
@@ -138,3 +142,20 @@ class DataGenerator(keras.utils.Sequence):
                 X[i,] = _read(self.img_dir + ID + ".dcm", self.img_size)
 
             return X
+
+
+def read_testset(filename='gs://rsna-kaggle-data/csv/stage_1_sample_submission.csv'):
+    df = pd.read_csv(filename)
+    df["Image"] = df["ID"].str.slice(stop=12)
+    df["Diagnosis"] = df["ID"].str.slice(start=13)
+
+    df = df.loc[:, ["Label", "Diagnosis", "Image"]]
+    df = df.set_index(['Image', 'Diagnosis']).unstack(level=-1)
+
+    return df
+
+
+def read_trainset(filename='gs://rsna-kaggle-data/csv/train_images.csv'):
+    """I already processed the df locally, and then uploaded the processed CSV, so no more work needed here."""
+    df = pd.read_csv(filename)
+    return df
