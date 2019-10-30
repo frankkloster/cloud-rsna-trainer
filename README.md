@@ -3,7 +3,7 @@ Templates for running ML jobs in Google Cloud, forked from [Google's office docs
 
 The below text is modified from the link above for our situation.
 
-### Predicting income with the Census Income Dataset using Keras
+### Predicting income with the hemorrhages using Keras
 
 This is forked from the Open Source Keras version of the Census sample. 
 The sample runs both as a standalone Keras code and on AI Platform.
