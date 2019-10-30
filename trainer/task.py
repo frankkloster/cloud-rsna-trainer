@@ -72,9 +72,9 @@ def train_and_evaluate(args):
         period=args.checkpoint_epochs,
         mode='min')
 
-    # Continuous eval callback.
-    evaluation = ContinuousEval(args.eval_frequency, args.eval_files,
-                                args.learning_rate, args.job_dir)
+    # # Continuous eval callback.
+    # evaluation = ContinuousEval(args.eval_frequency, args.eval_files,
+    #                             args.learning_rate, args.job_dir)
 
     # Tensorboard logs callback.
     tb_log = TensorBoard(
@@ -87,7 +87,8 @@ def train_and_evaluate(args):
         lambda epoch: args.learning_rate * pow(args.decay_rate, floor(epoch / args.decay_steps))
     )
 
-    callbacks = [checkpoint, evaluation, tb_log, scheduler]
+    callbacks = [checkpoint, tb_log, scheduler]
+    # callbacks = [checkpoint, evaluation, tb_log, scheduler]
 
     cnn_model.fit_and_predict(train_df.iloc[train_idx], train_df.iloc[valid_idx], test_df, callbacks)
 

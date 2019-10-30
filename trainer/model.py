@@ -73,7 +73,7 @@ class MyDeepModel:
     def fit_and_predict(self, train_df, valid_df, test_df, callbacks):
         # Prediction checkpoint
         pred_history = PredictionCheckpoint(test_df, valid_df, input_size=self.input_dims)
-        callbacks += pred_history
+        callbacks += [pred_history]
 
         self.model.fit_generator(
             DataGenerator(
