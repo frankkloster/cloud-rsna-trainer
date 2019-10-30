@@ -113,16 +113,16 @@ def copy_file_to_gcs(job_dir, file_path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '--train-files',
-        nargs='+',
-        help='Training file local or GCS',
-        default=['gs://cloud-samples-data/ml-engine/census/data/adult.data.csv'])
-    parser.add_argument(
-        '--eval-files',
-        nargs='+',
-        help='Evaluation file local or GCS',
-        default=['gs://cloud-samples-data/ml-engine/census/data/adult.test.csv'])
+    # parser.add_argument(
+    #     '--train-files',
+    #     nargs='+',
+    #     help='Training file local or GCS',
+    #     default=['gs://rsna-kaggle-data/csv/train_images.csv'])
+    # parser.add_argument(
+    #     '--eval-files',
+    #     nargs='+',
+    #     help='Evaluation file local or GCS',
+    #     default=['gs://cloud-samples-data/ml-engine/census/data/adult.test.csv'])
     parser.add_argument(
         '--job-dir',
         type=str,
