@@ -179,6 +179,16 @@ if __name__ == '__main__':
         help="""Rate of decay size of layer for Deep Neural Net.
         max(2, int(first_layer_size * scale_factor**i))""")
     parser.add_argument(
+        '--decay-rate',
+        type=float,
+        default=1.0,
+        help='Decay rate for learning rate schedule')
+    parser.add_argument(
+        '--decay-steps',
+        type=int,
+        default=1,
+        help='Decay steps for learning rate schedule')
+    parser.add_argument(
         '--eval-num-epochs',
         type=int,
         default=1,
