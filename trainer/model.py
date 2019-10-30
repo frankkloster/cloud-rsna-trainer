@@ -19,6 +19,7 @@ from builtins import range
 import keras
 
 from keras import backend as K
+from trainer.callbacks import PredictionCheckpoint
 
 from tensorflow.python.saved_model import builder as saved_model_builder
 from tensorflow.python.saved_model import signature_constants
@@ -26,11 +27,10 @@ from tensorflow.python.saved_model import tag_constants
 from tensorflow.python.saved_model.signature_def_utils_impl import predict_signature_def
 
 from trainer.data import DataGenerator
-from trainer.callbacks import PredictionCheckpoint
 from trainer.loss_eval_fcns import weighted_loss
 
 import os
-from math import floor
+
 
 TEST_IMAGES_DIR = os.environ.get('test_images_dir')
 TRAIN_IMAGES_DIR = os.environ.get('train_images_dir')
@@ -71,11 +71,9 @@ class MyDeepModel:
         self.model.compile(loss="binary_crossentropy", optimizer=keras.optimizers.Adam(), metrics=[weighted_loss])
 
     def fit_and_predict(self, train_df, valid_df, test_df, callbacks):
-        # extra callbacks
+        # Prediction checkpoint
         pred_history = PredictionCheckpoint(test_df, valid_df, input_size=self.input_dims)
-        scheduler = keras.callbacks.LearningRateScheduler(
-            lambda epoch: self.learning_rate * pow(self.decay_rate, floor(epoch / self.decay_steps))
-        )
+        callbacks += pred_history
 
         self.model.fit_generator(
             DataGenerator(
@@ -89,7 +87,7 @@ class MyDeepModel:
             verbose=self.verbose,
             use_multiprocessing=True,
             workers=4,
-            callbacks=[pred_history, scheduler] + callbacks
+            callbacks=callbacks
         )
 
         return pred_history

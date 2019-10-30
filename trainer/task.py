@@ -16,16 +16,18 @@
 
 import argparse
 import os
+from math import floor
 
-from keras.callbacks import ModelCheckpoint
-from keras.callbacks import TensorBoard
+from keras.callbacks import ModelCheckpoint, TensorBoard, LearningRateScheduler
 from keras_applications.resnet import ResNet50
 
 from tensorflow.python.lib.io import file_io
 
+from sklearn.model_selection import ShuffleSplit
+
 import trainer.model as model
-from trainer.callbacks import ContinuousEval
-from trainer.data import read_trainset
+from trainer.callbacks import ContinuousEval, PredictionCheckpoint
+from trainer.data import read_trainset, read_testset
 
 
 # CHUNK_SIZE specifies the number of lines
@@ -51,6 +53,17 @@ def train_and_evaluate(args):
     if not args.job_dir.startswith('gs://'):
         checkpoint_path = os.path.join(args.job_dir, checkpoint_path)
 
+    # Get the data
+    train_df = read_trainset()
+    test_df = read_testset()
+
+    # train set (00%) and validation set (10%)
+    ss = ShuffleSplit(n_splits=10, test_size=0.1, random_state=42).split(train_df.index)
+
+    # lets go for the first fold only
+    train_idx, valid_idx = next(ss)
+
+    # ===== CALLBACKS ======
     # Model checkpoint callback.
     checkpoint = ModelCheckpoint(
         checkpoint_path,
@@ -70,10 +83,11 @@ def train_and_evaluate(args):
         write_graph=True,
         embeddings_freq=0)
 
-    callbacks = [checkpoint, evaluation, tb_log]
+    scheduler = LearningRateScheduler(
+        lambda epoch: args.learning_rate * pow(args.decay_rate, floor(epoch / args.decay_steps))
+    )
 
-    # Get the data
-    train_df = read_trainset()
+    callbacks = [checkpoint, evaluation, tb_log, scheduler]
 
     cnn_model.fit_and_predict(train_df.iloc[train_idx], train_df.iloc[valid_idx], test_df, callbacks)
 
