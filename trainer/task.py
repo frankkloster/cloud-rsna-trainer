@@ -85,8 +85,7 @@ def train_and_evaluate(args):
         lambda epoch: args.learning_rate * pow(args.decay_rate, floor(epoch / args.decay_steps))
     )
 
-    # callbacks = [checkpoint, evaluation, tb_log, scheduler]
-    callbacks = None
+    callbacks = [checkpoint, tb_log, scheduler]
 
     cnn_model.fit_and_predict(train_df.iloc[train_idx], train_df.iloc[valid_idx], test_df, callbacks,
                               args.train_images_dir)
@@ -154,16 +153,6 @@ if __name__ == '__main__':
         '--eval-frequency',
         default=10,
         help='Perform one evaluation per n epochs')
-    parser.add_argument(
-        '--first-layer-size',
-        type=int,
-        default=256,
-        help='Number of nodes in the first layer of DNN')
-    parser.add_argument(
-        '--num-layers',
-        type=int,
-        default=2,
-        help='Number of layers in DNN')
     parser.add_argument(
         '--scale-factor',
         type=float,

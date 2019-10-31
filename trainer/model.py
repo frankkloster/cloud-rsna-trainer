@@ -31,7 +31,7 @@ from trainer.loss_eval_fcns import weighted_loss
 
 
 class MyDeepModel:
-    def __init__(self, engine, input_dims, batch_size=5, num_epochs=4, learning_rate=1e-3,
+    def __init__(self, engine, input_dims, batch_size=32, num_epochs=4, learning_rate=1e-3,
                  decay_rate=1.0, decay_steps=1, weights="imagenet", verbose=1):
         self.engine = engine
         self.input_dims = input_dims
@@ -58,8 +58,8 @@ class MyDeepModel:
 
     def fit_and_predict(self, train_df, valid_df, test_df, callbacks, train_images_dir):
         # Prediction checkpoint
-        # pred_history = PredictionCheckpoint(test_df, valid_df, input_size=self.input_dims)
-        # callbacks += [pred_history]
+        pred_history = PredictionCheckpoint(test_df, valid_df, input_size=self.input_dims)
+        callbacks += [pred_history]
 
         self.model.fit_generator(
             DataGenerator(
