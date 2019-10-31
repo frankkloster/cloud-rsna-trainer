@@ -10,5 +10,5 @@ setup(
     install_requires=REQUIRED_PACKAGES,
     packages=find_packages(),
     include_package_data=True,
-    description='Keras trainer application'
+    description='RSNA CNN application'
 )

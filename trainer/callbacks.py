@@ -2,7 +2,7 @@ import keras
 from keras.models import load_model
 from keras.callbacks import Callback
 
-from trainer.data import DataGenerator
+from trainer.data import DataGenerator, copy_file_to_gcs
 
 import os
 import glob
@@ -11,6 +11,7 @@ import trainer.model as model
 
 TEST_IMAGES_DIR = os.environ.get('test_images_dir')
 TRAIN_IMAGES_DIR = os.environ.get('train_images_dir')
+
 
 class PredictionCheckpoint(keras.callbacks.Callback):
     def __init__(self, test_df, valid_df,
@@ -35,11 +36,11 @@ class PredictionCheckpoint(keras.callbacks.Callback):
                 verbose=2)[:len(self.test_df)]
         )
 
+
 class ContinuousEval(Callback):
     """Continuous eval callback to evaluate the checkpoint once
      every so many epochs.
   """
-
     def __init__(self,
                  eval_frequency,
                  eval_files,

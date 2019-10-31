@@ -21,20 +21,18 @@ from math import floor
 from keras.callbacks import ModelCheckpoint, TensorBoard, LearningRateScheduler
 from keras_applications.resnet import ResNet50
 
-from tensorflow.python.lib.io import file_io
-
 from sklearn.model_selection import ShuffleSplit
 
 import trainer.model as model
-from trainer.callbacks import ContinuousEval, PredictionCheckpoint
-from trainer.data import read_trainset, read_testset
+from trainer.data import read_trainset, read_testset, copy_file_to_gcs
+from trainer.callbacks import ContinuousEval
 
 
 # CHUNK_SIZE specifies the number of lines
 # to read in case the file is very large
 CHUNK_SIZE = 5000
 CHECKPOINT_FILE_PATH = 'checkpoint.{epoch:02d}.hdf5'
-CENSUS_MODEL = 'rsna.hdf5'
+MODEL_FILE = 'rsna.hdf5'
 
 ENGINE = ResNet50
 INPUT_DIMS = (256, 256, 3)
@@ -72,7 +70,7 @@ def train_and_evaluate(args):
         period=args.checkpoint_epochs,
         mode='min')
 
-    # # Continuous eval callback.
+    # Continuous eval callback.
     # evaluation = ContinuousEval(args.eval_frequency, args.eval_files,
     #                             args.learning_rate, args.job_dir)
 
@@ -87,48 +85,42 @@ def train_and_evaluate(args):
         lambda epoch: args.learning_rate * pow(args.decay_rate, floor(epoch / args.decay_steps))
     )
 
-    callbacks = [checkpoint, tb_log, scheduler]
     # callbacks = [checkpoint, evaluation, tb_log, scheduler]
+    callbacks = None
 
-    cnn_model.fit_and_predict(train_df.iloc[train_idx], train_df.iloc[valid_idx], test_df, callbacks)
+    cnn_model.fit_and_predict(train_df.iloc[train_idx], train_df.iloc[valid_idx], test_df, callbacks,
+                              args.train_images_dir)
 
     # Unhappy hack to workaround h5py not being able to write to GCS.
     # Force snapshots and saves to local filesystem, then copy them over to GCS.
     if args.job_dir.startswith('gs://'):
-        cnn_model.save(CENSUS_MODEL)
-        copy_file_to_gcs(args.job_dir, CENSUS_MODEL)
+        cnn_model.save(MODEL_FILE)
+        copy_file_to_gcs(args.job_dir, MODEL_FILE)
     else:
-        cnn_model.save(os.path.join(args.job_dir, CENSUS_MODEL))
+        cnn_model.save(os.path.join(args.job_dir, MODEL_FILE))
 
     # Convert the Keras model to TensorFlow SavedModel.
     model.to_savedmodel(cnn_model, os.path.join(args.job_dir, 'export'))
 
 
-# h5py workaround: copy local models over to GCS if the job_dir is GCS.
-def copy_file_to_gcs(job_dir, file_path):
-    with file_io.FileIO(file_path, mode='rb') as input_f:
-        with file_io.FileIO(
-                os.path.join(job_dir, file_path), mode='w+') as output_f:
-            output_f.write(input_f.read())
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    # parser.add_argument(
-    #     '--train-files',
-    #     nargs='+',
-    #     help='Training file local or GCS',
-    #     default=['gs://rsna-kaggle-data/csv/train_images.csv'])
-    # parser.add_argument(
-    #     '--eval-files',
-    #     nargs='+',
-    #     help='Evaluation file local or GCS',
-    #     default=['gs://cloud-samples-data/ml-engine/census/data/adult.test.csv'])
+    parser.add_argument(
+        '--train-images-dir',
+        nargs='+',
+        help='Training images local or GCS',
+        default='gs://rsna-kaggle-data/images/stage_1_train_images')
+    parser.add_argument(
+        '--test-images-dir',
+        nargs='+',
+        help='Testing images local or GCS',
+        default='gs://rsna-kaggle-data/images/stage_1_test_images')
     parser.add_argument(
         '--job-dir',
         type=str,
         help='GCS or local dir to write checkpoints and export model',
-        default='/tmp/census-keras')
+        default='gs://gcc-models/rsna')
     parser.add_argument(
         '--train-steps',
         type=int,

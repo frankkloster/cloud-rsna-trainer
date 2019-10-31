@@ -29,20 +29,6 @@ from tensorflow.python.saved_model.signature_def_utils_impl import predict_signa
 from trainer.data import DataGenerator
 from trainer.loss_eval_fcns import weighted_loss
 
-import os
-
-
-TEST_IMAGES_DIR = os.environ.get('test_images_dir')
-TRAIN_IMAGES_DIR = os.environ.get('train_images_dir')
-
-# CSV columns in the input file.
-CSV_COLUMNS = ('Image')
-
-CSV_COLUMN_DEFAULTS = ['']
-
-LABELS = [0, 1]
-LABEL_COLUMNS = ['any', 'epidural', 'intraparenchymal', 'intraventricular', 'subarachnoid', 'subdural']
-
 
 class MyDeepModel:
     def __init__(self, engine, input_dims, batch_size=5, num_epochs=4, learning_rate=1e-3,
@@ -70,10 +56,10 @@ class MyDeepModel:
 
         self.model.compile(loss="binary_crossentropy", optimizer=keras.optimizers.Adam(), metrics=[weighted_loss])
 
-    def fit_and_predict(self, train_df, valid_df, test_df, callbacks):
+    def fit_and_predict(self, train_df, valid_df, test_df, callbacks, train_images_dir):
         # Prediction checkpoint
-        pred_history = PredictionCheckpoint(test_df, valid_df, input_size=self.input_dims)
-        callbacks += [pred_history]
+        # pred_history = PredictionCheckpoint(test_df, valid_df, input_size=self.input_dims)
+        # callbacks += [pred_history]
 
         self.model.fit_generator(
             DataGenerator(
@@ -81,7 +67,7 @@ class MyDeepModel:
                 train_df,
                 self.batch_size,
                 self.input_dims,
-                TRAIN_IMAGES_DIR
+                train_images_dir
             ),
             epochs=self.num_epochs,
             verbose=self.verbose,
@@ -90,7 +76,7 @@ class MyDeepModel:
             callbacks=callbacks
         )
 
-        return pred_history
+        return None
 
     def save(self, path):
         self.model.save_weights(path)

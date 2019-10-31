@@ -1,16 +1,21 @@
 import keras
 
+from tensorflow.python.lib.io import file_io
+
 import numpy as np
 import pandas as pd
 
 import pydicom
 import cv2
 
-from math import ceil, floor, log
+import gcsfs
+
+from math import ceil
 import os
 
 TEST_IMAGES_DIR = os.environ.get('test_images_dir')
 TRAIN_IMAGES_DIR = os.environ.get('train_images_dir')
+
 
 def correct_dcm(dcm):
     x = dcm.pixel_array + 1000
@@ -81,7 +86,18 @@ def window_testing(img, window):
 
 def _read(path, desired_size):
     """Will be used in DataGenerator"""
-    dcm = pydicom.dcmread(path)
+    if path.startswith('gs://'):
+        project = 'imperial-legacy-197723'
+        try:
+            fs = gcsfs.GCSFileSystem(project=project)
+            with fs.open(path) as f:
+                dcm = pydicom.dcmread(f)
+        except Exception as e:
+            print(e)
+            raise
+    else:
+        dcm = pydicom.dcmread(path)
+
     try:
         img = bsb_window(dcm)
     except:
@@ -97,6 +113,8 @@ class DataGenerator(keras.utils.Sequence):
         self.labels = labels
         self.batch_size = batch_size
         self.img_size = img_size
+        if img_dir[-1] != '/':
+            img_dir += '/'
         self.img_dir = img_dir
         self.on_epoch_end()
 
@@ -115,15 +133,8 @@ class DataGenerator(keras.utils.Sequence):
             return X
 
     def on_epoch_end(self):
-
-        if self.labels is not None:  # for training phase we undersample and shuffle
-            # keep probability of any=0 and any=1
-            keep_prob = self.labels.iloc[:, 0].map({0: 0.35, 1: 0.5})
-            keep = (keep_prob > np.random.rand(len(keep_prob)))
-            self.indices = np.arange(len(self.list_IDs))[keep]
-            np.random.shuffle(self.indices)
-        else:
-            self.indices = np.arange(len(self.list_IDs))
+        self.indices = np.arange(len(self.list_IDs))
+        np.random.shuffle(self.indices)
 
     def __data_generation(self, list_IDs_temp):
         X = np.empty((self.batch_size, *self.img_size))
@@ -144,6 +155,14 @@ class DataGenerator(keras.utils.Sequence):
             return X
 
 
+# h5py workaround: copy local models over to GCS if the job_dir is GCS.
+def copy_file_to_gcs(job_dir, file_path):
+    with file_io.FileIO(file_path, mode='rb') as input_f:
+        with file_io.FileIO(
+                os.path.join(job_dir, file_path), mode='w+') as output_f:
+            output_f.write(input_f.read())
+
+
 def read_testset(filename='gs://rsna-kaggle-data/csv/stage_1_sample_submission.csv'):
     df = pd.read_csv(filename)
     df["Image"] = df["ID"].str.slice(stop=12)
@@ -155,7 +174,22 @@ def read_testset(filename='gs://rsna-kaggle-data/csv/stage_1_sample_submission.c
     return df
 
 
-def read_trainset(filename='gs://rsna-kaggle-data/csv/train_images.csv'):
-    """I already processed the df locally, and then uploaded the processed CSV, so no more work needed here."""
+def read_trainset(filename="gs://rsna-kaggle-data/csv/stage_1_train.csv"):
     df = pd.read_csv(filename)
+    df["Image"] = df["ID"].str.slice(stop=12)
+    df["Diagnosis"] = df["ID"].str.slice(start=13)
+
+    duplicates_to_remove = [
+        1598538, 1598539, 1598540, 1598541, 1598542, 1598543,
+        312468, 312469, 312470, 312471, 312472, 312473,
+        2708700, 2708701, 2708702, 2708703, 2708704, 2708705,
+        3032994, 3032995, 3032996, 3032997, 3032998, 3032999
+    ]
+
+    df = df.drop(index=duplicates_to_remove)
+    df = df.reset_index(drop=True)
+
+    df = df.loc[:, ["Label", "Diagnosis", "Image"]]
+    df = df.set_index(['Image', 'Diagnosis']).unstack(level=-1)
+
     return df
