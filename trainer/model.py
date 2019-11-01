@@ -76,7 +76,7 @@ class MyDeepModel:
             callbacks=callbacks
         )
 
-        return None
+        return pred_history
 
     def save(self, path):
         self.model.save_weights(path)

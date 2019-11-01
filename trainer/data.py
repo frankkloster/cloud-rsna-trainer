@@ -89,8 +89,8 @@ def _read(path, desired_size):
     if path.startswith('gs://'):
         project = 'imperial-legacy-197723'
         try:
-            fs = gcsfs.GCSFileSystem(project=project)
-            with fs.open(path) as f:
+            # fs = gcsfs.GCSFileSystem(project=project)
+            with file_io.FileIO(path, mode='r') as f:
                 dcm = pydicom.dcmread(f)
         except Exception as e:
             print(e)
