@@ -1,0 +1,7 @@
+trainingInput:
+  scaleTier: CUSTOM
+  # Configure a master worker with 4 K80 GPUs
+  masterType: standard_gpu
+  # Configure 9 workers, each with 4 K80 GPUs
+  workerCount: 5
+  workerType: complex_model_m_gpu
