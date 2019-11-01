@@ -40,8 +40,8 @@ class MyDeepModel:
 
     def fit_and_predict(self, train_df, valid_df, test_df, callbacks, train_images_dir):
         # Prediction checkpoint
-        pred_history = PredictionCheckpoint(test_df, valid_df, input_size=self.input_dims)
-        callbacks += [pred_history]
+        # pred_history = PredictionCheckpoint(test_df, valid_df, input_size=self.input_dims)
+        # callbacks += [pred_history]
 
         self.model.fit_generator(
             DataGenerator(
@@ -58,7 +58,7 @@ class MyDeepModel:
             callbacks=callbacks
         )
 
-        return pred_history
+        return None
 
     def save(self, path):
         self.model.save_weights(path)

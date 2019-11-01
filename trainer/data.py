@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 import pydicom
+from pydicom.filebase import DicomBytesIO
 import cv2
 
 from math import ceil
@@ -86,7 +87,8 @@ def _read(path, desired_size):
     """Will be used in DataGenerator"""
     if path.startswith('gs://'):
         try:
-            with file_io.FileIO(path, mode='r') as f:
+            with file_io.FileIO(path, mode='rb') as fb:
+                f = DicomBytesIO(fb.read())
                 dcm = pydicom.dcmread(f)
         except Exception as e:
             print(e)
@@ -113,7 +115,6 @@ class DataGenerator(keras.utils.Sequence):
         if img_dir[-1] != '/':
             img_dir += '/'
         self.img_dir = img_dir
-        # self.fs = gcsfs.GCSFileSystem(project='imperial-legacy-197723', token='secrets/RSNA-Kaggle-522f61d12415.json')
         self.on_epoch_end()
 
     def __len__(self):

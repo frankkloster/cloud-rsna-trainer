@@ -86,7 +86,6 @@ def train_and_evaluate(args):
     model.to_savedmodel(cnn_model, os.path.join(args.job_dir, 'export'))
 
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
