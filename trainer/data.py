@@ -1,7 +1,6 @@
 import keras
 
 from tensorflow.python.lib.io import file_io
-import gcsfs
 
 import numpy as np
 import pandas as pd
@@ -83,14 +82,15 @@ def window_testing(img, window):
     return bsb_img
 
 
-def _read(path, desired_size, fs=None):
+def _read(path, desired_size):
     """Will be used in DataGenerator"""
-    if path.startswith('gs://') and fs is not None:
+    if path.startswith('gs://'):
         try:
-            with fs.open(path, 'r') as f:
+            with file_io.FileIO(path, mode='r') as f:
                 dcm = pydicom.dcmread(f)
         except Exception as e:
             print(e)
+            print(path)
             raise
     else:
         dcm = pydicom.dcmread(path)
@@ -113,9 +113,7 @@ class DataGenerator(keras.utils.Sequence):
         if img_dir[-1] != '/':
             img_dir += '/'
         self.img_dir = img_dir
-        # self.gcs_client = storage.Client()
-        # self.data_bucket = self.gcs_client.get_bucket('rsna-kaggle-data')
-        self.fs = gcsfs.GCSFileSystem(project='imperial-legacy-197723', token='cloud')
+        # self.fs = gcsfs.GCSFileSystem(project='imperial-legacy-197723', token='secrets/RSNA-Kaggle-522f61d12415.json')
         self.on_epoch_end()
 
     def __len__(self):
@@ -143,14 +141,14 @@ class DataGenerator(keras.utils.Sequence):
             Y = np.empty((self.batch_size, 6), dtype=np.float32)
 
             for i, ID in enumerate(list_IDs_temp):
-                X[i,] = _read(self.img_dir + ID + ".dcm", self.img_size, fs=self.fs)
+                X[i,] = _read(self.img_dir + ID + ".dcm", self.img_size)
                 Y[i,] = self.labels.loc[ID].values
 
             return X, Y
 
         else:  # test phase
             for i, ID in enumerate(list_IDs_temp):
-                X[i,] = _read(self.img_dir + ID + ".dcm", self.img_size, fs=self.fs)
+                X[i,] = _read(self.img_dir + ID + ".dcm", self.img_size)
 
             return X
 

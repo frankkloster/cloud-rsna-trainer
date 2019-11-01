@@ -1,21 +1,3 @@
-# Copyright 2017 The TensorFlow Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-"""Implements the Keras Sequential model."""
-
-from builtins import range
-
 import keras
 
 from keras import backend as K
@@ -32,7 +14,7 @@ from trainer.loss_eval_fcns import weighted_loss
 
 class MyDeepModel:
     def __init__(self, engine, input_dims, batch_size=32, num_epochs=4, learning_rate=1e-3,
-                 decay_rate=1.0, decay_steps=1, weights="imagenet", verbose=1):
+                 decay_rate=1.0, decay_steps=1, weights='imagenet', verbose=1):
         self.engine = engine
         self.input_dims = input_dims
         self.batch_size = batch_size

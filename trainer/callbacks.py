@@ -3,11 +3,10 @@ from keras.models import load_model
 from keras.callbacks import Callback
 
 from trainer.data import DataGenerator, copy_file_to_gcs
+from trainer import model
 
 import os
 import glob
-
-import trainer.model as model
 
 TEST_IMAGES_DIR = os.environ.get('test_images_dir')
 TRAIN_IMAGES_DIR = os.environ.get('train_images_dir')
