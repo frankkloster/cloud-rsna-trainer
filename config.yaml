@@ -1,7 +1,8 @@
 trainingInput:
   scaleTier: CUSTOM
-  # Configure a master worker with 4 K80 GPUs
-  masterType: standard_gpu
-  # Configure 9 workers, each with 4 K80 GPUs
-  workerCount: 5
-  workerType: complex_model_m_gpu
+  # Configure a master worker with 2 V100 GPUs
+  masterType: n1-highmem-8
+  masterConfig:
+    acceleratorConfig:
+      count: 2
+      type: NVIDIA_TESLA_V100
