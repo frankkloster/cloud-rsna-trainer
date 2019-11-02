@@ -7,22 +7,56 @@ from sklearn.model_selection import ShuffleSplit
 import trainer.model as model
 from keras.callbacks import LearningRateScheduler, ModelCheckpoint, TensorBoard
 from keras_applications.inception_v3 import InceptionV3
-from trainer.data import copy_file_to_gcs, read_testset, read_trainset
+from trainer.data import copy_file_to_gcs
 
 # from trainer.callbacks import ContinuousEval
 
-# CHUNK_SIZE specifies the number of lines
-# to read in case the file is very large
-CHUNK_SIZE = 5000
 CHECKPOINT_FILE_PATH = 'checkpoint.{epoch:02d}.hdf5'
 MODEL_FILE = 'rsna.hdf5'
 
 ENGINE = InceptionV3
 INPUT_DIMS = (256, 256, 3)
 
+"""
+TODO:
+So, this part is unneeded at this very moment. To make a submission, it is needed. Maybe split it into two files, task-train and task-predict for the sample prediction?
+"""
+# def read_testset(filename='gs://rsna-kaggle-data/csv/stage_1_sample_submission.csv'):
+#     df = pd.read_csv(filename)
+#     df["Image"] = df["ID"].str.slice(stop=12)
+#     df["Diagnosis"] = df["ID"].str.slice(start=13)
+
+#     df = df.loc[:, ["Label", "Diagnosis", "Image"]]
+#     df = df.set_index(['Image', 'Diagnosis']).unstack(level=-1)
+
+#     return df
+
+
+def read_trainset(filename="gs://rsna-kaggle-data/csv/stage_1_train.csv"):
+    df = pd.read_csv(filename)
+    df["Image"] = df["ID"].str.slice(stop=12)
+    df["Diagnosis"] = df["ID"].str.slice(start=13)
+
+    duplicates_to_remove = [
+        1598538, 1598539, 1598540, 1598541, 1598542, 1598543,
+        312468, 312469, 312470, 312471, 312472, 312473,
+        2708700, 2708701, 2708702, 2708703, 2708704, 2708705,
+        3032994, 3032995, 3032996, 3032997, 3032998, 3032999
+    ]
+
+    df = df.drop(index=duplicates_to_remove)
+    df = df.reset_index(drop=True)
+
+    df = df.loc[:, ["Label", "Diagnosis", "Image"]]
+    df = df.set_index(['Image', 'Diagnosis']).unstack(level=-1)
+
+    return df
 
 def train_and_evaluate(args):
-    cnn_model = model.MyDeepModel(engine=ENGINE, input_dims=INPUT_DIMS)
+    cnn_model = model.MyDeepModel(
+        engine=ENGINE, 
+        input_dims=INPUT_DIMS,
+    )
     try:
         os.makedirs(args.job_dir)
     except:
@@ -103,28 +137,14 @@ if __name__ == '__main__':
         help='GCS or local dir to write checkpoints and export model',
         default='gs://gcc-models/rsna')
     parser.add_argument(
-        '--train-steps',
-        type=int,
-        default=100,
-        help="""\
-        Maximum number of training steps to perform
-        Training steps are in the units of training-batch-size.
-        So if train-steps is 500 and train-batch-size if 100 then
-        at most 500 * 100 training instances will be used to train.""")
-    parser.add_argument(
-        '--eval-steps',
-        help='Number of steps to run evalution for at each checkpoint',
-        default=100,
-        type=int)
-    parser.add_argument(
         '--train-batch-size',
         type=int,
-        default=40,
+        default=32,
         help='Batch size for training steps')
     parser.add_argument(
         '--eval-batch-size',
         type=int,
-        default=40,
+        default=32,
         help='Batch size for evaluation steps')
     parser.add_argument(
         '--learning-rate',

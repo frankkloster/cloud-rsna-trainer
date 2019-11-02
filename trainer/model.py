@@ -13,7 +13,10 @@ from trainer.loss_eval_fcns import weighted_loss
 
 
 class MyDeepModel:
-    def __init__(self, engine, input_dims, batch_size=256, num_epochs=5, learning_rate=1e-3,
+    """
+    Deep convolutional neural network for image classification purposes.
+    """
+    def __init__(self, engine, input_dims, batch_size=32, num_epochs=5, learning_rate=1e-3,
                  decay_rate=1.0, decay_steps=1, weights='imagenet', verbose=1):
         self.engine = engine
         self.input_dims = input_dims

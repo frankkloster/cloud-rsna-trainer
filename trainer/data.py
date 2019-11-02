@@ -160,35 +160,3 @@ def copy_file_to_gcs(job_dir, file_path):
         with file_io.FileIO(
                 os.path.join(job_dir, file_path), mode='w+') as output_f:
             output_f.write(input_f.read())
-
-
-def read_testset(filename='gs://rsna-kaggle-data/csv/stage_1_sample_submission.csv'):
-    df = pd.read_csv(filename)
-    df["Image"] = df["ID"].str.slice(stop=12)
-    df["Diagnosis"] = df["ID"].str.slice(start=13)
-
-    df = df.loc[:, ["Label", "Diagnosis", "Image"]]
-    df = df.set_index(['Image', 'Diagnosis']).unstack(level=-1)
-
-    return df
-
-
-def read_trainset(filename="gs://rsna-kaggle-data/csv/stage_1_train.csv"):
-    df = pd.read_csv(filename)
-    df["Image"] = df["ID"].str.slice(stop=12)
-    df["Diagnosis"] = df["ID"].str.slice(start=13)
-
-    duplicates_to_remove = [
-        1598538, 1598539, 1598540, 1598541, 1598542, 1598543,
-        312468, 312469, 312470, 312471, 312472, 312473,
-        2708700, 2708701, 2708702, 2708703, 2708704, 2708705,
-        3032994, 3032995, 3032996, 3032997, 3032998, 3032999
-    ]
-
-    df = df.drop(index=duplicates_to_remove)
-    df = df.reset_index(drop=True)
-
-    df = df.loc[:, ["Label", "Diagnosis", "Image"]]
-    df = df.set_index(['Image', 'Diagnosis']).unstack(level=-1)
-
-    return df
