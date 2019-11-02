@@ -13,7 +13,7 @@ from trainer.loss_eval_fcns import weighted_loss
 
 
 class MyDeepModel:
-    def __init__(self, engine, input_dims, batch_size=32, num_epochs=4, learning_rate=1e-3,
+    def __init__(self, engine, input_dims, batch_size=256, num_epochs=5, learning_rate=1e-3,
                  decay_rate=1.0, decay_steps=1, weights='imagenet', verbose=1):
         self.engine = engine
         self.input_dims = input_dims
@@ -32,6 +32,10 @@ class MyDeepModel:
                              models=keras.models, utils=keras.utils)
 
         x = keras.layers.GlobalAveragePooling2D(name='avg_pool')(engine.output)
+        # Uncomment later at some point. Should have one extra layer for prediction.
+        # x = keras.layers.Dropout(0.2)(x)
+        # x = keras.layers.Dense(keras.backend.int_shape(x)[1], activation="relu", name="dense_hidden_1")(x)
+        # x = keras.layers.Dropout(0.1)(x)
         out = keras.layers.Dense(6, activation="sigmoid", name='dense_output')(x)
 
         self.model = keras.models.Model(inputs=engine.input, outputs=out)

@@ -2,15 +2,14 @@ import argparse
 import os
 from math import floor
 
-from keras.callbacks import ModelCheckpoint, TensorBoard, LearningRateScheduler
-from keras_applications.resnet import ResNet50
-
 from sklearn.model_selection import ShuffleSplit
 
 import trainer.model as model
-from trainer.data import read_trainset, read_testset, copy_file_to_gcs
-# from trainer.callbacks import ContinuousEval
+from keras.callbacks import LearningRateScheduler, ModelCheckpoint, TensorBoard
+from keras_applications.inception_v3 import InceptionV3
+from trainer.data import copy_file_to_gcs, read_testset, read_trainset
 
+# from trainer.callbacks import ContinuousEval
 
 # CHUNK_SIZE specifies the number of lines
 # to read in case the file is very large
@@ -18,7 +17,7 @@ CHUNK_SIZE = 5000
 CHECKPOINT_FILE_PATH = 'checkpoint.{epoch:02d}.hdf5'
 MODEL_FILE = 'rsna.hdf5'
 
-ENGINE = ResNet50
+ENGINE = InceptionV3
 INPUT_DIMS = (256, 256, 3)
 
 
