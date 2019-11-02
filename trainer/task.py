@@ -56,6 +56,13 @@ def train_and_evaluate(args):
     cnn_model = model.MyDeepModel(
         engine=ENGINE, 
         input_dims=INPUT_DIMS,
+        batch_size=args.batch_size,
+        num_epochs=args.num_epochs,
+        learning_rate=args.learning_rate,
+        decay_rate=args.decay_rate,
+        decay_steps=args.decay_steps,
+        weights='imagenet',
+        verbose=1
     )
     try:
         os.makedirs(args.job_dir)
@@ -137,7 +144,7 @@ if __name__ == '__main__':
         help='GCS or local dir to write checkpoints and export model',
         default='gs://gcc-models/rsna')
     parser.add_argument(
-        '--train-batch-size',
+        '--batch-size',
         type=int,
         default=32,
         help='Batch size for training steps')
@@ -179,7 +186,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--num-epochs',
         type=int,
-        default=20,
+        default=5,
         help='Maximum number of epochs on which to train')
     parser.add_argument(
         '--checkpoint-epochs',
