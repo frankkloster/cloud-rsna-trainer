@@ -17,21 +17,6 @@ MODEL_FILE = 'rsna.hdf5'
 ENGINE = InceptionV3
 INPUT_DIMS = (256, 256, 3)
 
-"""
-TODO:
-So, this part is unneeded at this very moment. To make a submission, it is needed. Maybe split it into two files, task-train and task-predict for the sample prediction?
-"""
-# def read_testset(filename='gs://rsna-kaggle-data/csv/stage_1_sample_submission.csv'):
-#     df = pd.read_csv(filename)
-#     df["Image"] = df["ID"].str.slice(stop=12)
-#     df["Diagnosis"] = df["ID"].str.slice(start=13)
-
-#     df = df.loc[:, ["Label", "Diagnosis", "Image"]]
-#     df = df.set_index(['Image', 'Diagnosis']).unstack(level=-1)
-
-#     return df
-
-
 def read_trainset(filename="gs://rsna-kaggle-data/csv/stage_1_train.csv"):
     df = pd.read_csv(filename)
     df["Image"] = df["ID"].str.slice(stop=12)
@@ -149,15 +134,10 @@ if __name__ == '__main__':
         default=32,
         help='Batch size for training steps')
     parser.add_argument(
-        '--eval-batch-size',
-        type=int,
-        default=32,
-        help='Batch size for evaluation steps')
-    parser.add_argument(
         '--learning-rate',
         type=float,
         default=0.003,
-        help='Learning rate for SGD')
+        help='Learning rate for Adam optimizer.')
     parser.add_argument(
         '--eval-frequency',
         default=10,
